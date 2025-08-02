@@ -35,7 +35,7 @@ app.post("/noproxy/scrape", async (req, res)=>{
 })
 
 app.get("/testing", (req, res)=>{
-    console.log("working")
+    console.log("working testing")
     res.json({message:"index.js server running at 3000"})
 })
 

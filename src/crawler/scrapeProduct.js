@@ -12,13 +12,14 @@ const userAgents = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/118.0.0.0 Safari/537.36',
   'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1',
 ];
-const BROWSER_WS = process.env.BRIGHT_DATA
+const BROWSER_WS = process.env.BRIGHT_DATA;
 const BASE_URL = 'https://www.amazon.in';
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function scrapeAmazonProduct(url) {
   await log(`Starting scrape for ${url}`);
+  let productData = null;
   await retry(
     async () => {
       const browser = await puppeteer.connect({ browserWSEndpoint: BROWSER_WS });
@@ -31,8 +32,6 @@ async function scrapeAmazonProduct(url) {
         const content = await page.content();
         if (content.includes('Enter the characters you see below')) {
           await log(`CAPTCHA triggered for ${url} - skipping`);
-          await page.close();
-          await browser.disconnect();
           return;
         }
 
@@ -43,8 +42,11 @@ async function scrapeAmazonProduct(url) {
             price: getText('.a-price .a-offscreen'),
             rating: getText('span.a-icon-alt'),
             reviews: getText('#acrCustomerReviewText'),
+            url: window.location.href
           };
         });
+
+        productData = data;
 
         try {
           const existingProduct = await client.product.findUnique({ where: { url } });
@@ -81,6 +83,7 @@ async function scrapeAmazonProduct(url) {
       onRetry: (error) => log(`Retrying ${url}: ${error.message}`),
     }
   );
+  return productData;
 }
 
 async function getProductLinksFromSearch(searchUrl) {
@@ -111,14 +114,17 @@ async function getProductLinksFromSearch(searchUrl) {
 }
 
 const scraper = async (product) => {
+  const results = [];
   try {
-    // https://www.amazon.in/s?k=lighter
     const links = await getProductLinksFromSearch(`https://www.amazon.in/s?k=${product}`);
     console.log('Total product links found:', links.length);
     const maxLinks = 3;
     const selectedLinks = links.slice(0, maxLinks);
 
-    processQueue(5, scrapeAmazonProduct); 
+    processQueue(5, async (url) => {
+      const data = await scrapeAmazonProduct(url);
+      if (data) results.push(data);
+    });
 
     for (let link of selectedLinks) {
       await addToQueue(link);
@@ -126,20 +132,20 @@ const scraper = async (product) => {
     }
 
     await delay(10000);
+    return results;
   } catch (error) {
     await log(`Main loop error: ${error.message}`);
     console.error('Main loop error:', error);
+    return results;
   } finally {
     await closeRedis();
     await client.$disconnect();
   }
 };
 
-
-//without proxy -> due to bright-data credit limits
-
 async function scrapeAmazonProductLocal(url) {
   await log(`Starting local scrape for ${url}`);
+  let productData = null;
   await retry(
     async () => {
       const browser = await puppeteerLocal.launch({
@@ -155,8 +161,6 @@ async function scrapeAmazonProductLocal(url) {
         const content = await page.content();
         if (content.includes('Enter the characters you see below')) {
           await log(`CAPTCHA triggered for ${url} - skipping`);
-          await page.close();
-          await browser.close();
           return;
         }
 
@@ -167,8 +171,11 @@ async function scrapeAmazonProductLocal(url) {
             price: getText('.a-price .a-offscreen'),
             rating: getText('span.a-icon-alt'),
             reviews: getText('#acrCustomerReviewText'),
+            url: window.location.href
           };
         });
+
+        productData = data;
 
         try {
           const existingProduct = await client.product.findUnique({ where: { url } });
@@ -205,36 +212,11 @@ async function scrapeAmazonProductLocal(url) {
       onRetry: (error) => log(`Retrying ${url}: ${error.message}`),
     }
   );
-}
-
-async function getProductLinksFromSearch(searchUrl) {
-  try {
-    const { data } = await axios.get(searchUrl, {
-      headers: {
-        'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
-      },
-    });
-    const $ = cheerio.load(data);
-    const productLinks = [];
-    $('a.a-link-normal.s-faceout-link, a.a-link-normal.s-no-outline').each((_, element) => {
-      const relativeLink = $(element).attr('href');
-      if (relativeLink && relativeLink.includes('/dp/')) {
-        const fullLink = BASE_URL + relativeLink.split('?')[0];
-        if (!productLinks.includes(fullLink)) {
-          productLinks.push(fullLink);
-        }
-      }
-    });
-    await log(`Fetched ${productLinks.length} links from ${searchUrl}`);
-    return productLinks;
-  } catch (err) {
-    await log(`Failed to fetch links from ${searchUrl}: ${err.message}`);
-    console.error('Error fetching links:', err);
-    return [];
-  }
+  return productData;
 }
 
 const scraperLocal = async (product) => {
+  const results = [];
   try {
     const links = await getProductLinksFromSearch(`https://www.amazon.in/s?k=${product}`);
     console.log('Total product links found:', links.length);
@@ -243,14 +225,17 @@ const scraperLocal = async (product) => {
 
     for (let link of selectedLinks) {
       console.log(`Directly scraping: ${link}`);
-      await scrapeAmazonProductLocal(link);
+      const data = await scrapeAmazonProductLocal(link);
+      if (data) results.push(data);
       await delay(1000 + Math.random() * 2000);
     }
 
     console.log('ended');
+    return results;
   } catch (error) {
     await log(`Main loop error: ${error.message}`);
     console.error('Main loop error:', error);
+    return results;
   } finally {
     await closeRedis();
     await client.$disconnect();
@@ -261,5 +246,3 @@ module.exports = {
   scraper,
   scraperLocal
 };
-
-// scraperLocal("phone")

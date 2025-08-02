@@ -1,19 +1,26 @@
-version: '3.8'
-
 services:
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: amazon-scraper:latest
     ports:
       - "3000:3000"
-      - "3001:3001"
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     environment:
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      - DATABASE_URL=postgresql://neondb_owner:npg_OJ6M9ZkBgHmT@ep-fragrant-queen-adxcbn0s-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
   redis:
     image: redis/redis-stack:latest
     ports:
       - "6379:6379"
-      - "8001:8001" 
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-h", "redis", "-p", "6379", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
