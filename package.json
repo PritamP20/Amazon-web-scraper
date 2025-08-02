@@ -8,7 +8,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index"
+    "start": "concurrently \"node index.js\" \"node ./src/database/bull/bull.js\""
   },
   "dependencies": {
     "@bull-board/api": "^6.12.0",

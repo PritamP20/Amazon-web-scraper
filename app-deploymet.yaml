@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amazon-scraper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: amazon-scraper
+  template:
+    metadata:
+      labels:
+        app: amazon-scraper
+    spec:
+      containers:
+        - name: amazon-scraper
+          image: amazon-scraper:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: PUPPETEER_EXECUTABLE_PATH
+              value: /usr/bin/chromium-browser
+            - name: DATABASE_URL
+              value: postgresql://neondb_owner:npg_OJ6M9ZkBgHmT@ep-fragrant-queen-adxcbn0s-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require

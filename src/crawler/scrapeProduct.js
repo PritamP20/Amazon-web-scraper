@@ -220,7 +220,7 @@ const scraperLocal = async (product) => {
   try {
     const links = await getProductLinksFromSearch(`https://www.amazon.in/s?k=${product}`);
     console.log('Total product links found:', links.length);
-    const maxLinks = 3;
+    const maxLinks = 10;
     const selectedLinks = links.slice(0, maxLinks);
 
     for (let link of selectedLinks) {
@@ -237,8 +237,8 @@ const scraperLocal = async (product) => {
     console.error('Main loop error:', error);
     return results;
   } finally {
-    await closeRedis();
-    await client.$disconnect();
+    // await closeRedis();
+    // await client.$disconnect();
   }
 };
 
