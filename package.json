@@ -26,6 +26,8 @@
     "ioredis": "^5.7.0",
     "puppeteer": "^24.15.0",
     "puppeteer-core": "^24.15.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "redis": "^5.7.0"
   },
   "devDependencies": {

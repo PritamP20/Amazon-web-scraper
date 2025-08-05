@@ -1,5 +1,5 @@
 const express = require("express")
-const {scraper, scraperLocal} = require("./src/crawler/scrapeProduct")
+const {scraper, scraperLocal, scrapeAmazon, scrapeAdidas} = require("./src/crawler/scrapeProduct")
 const cors = require("cors")
 
 const app = express()
@@ -30,6 +30,24 @@ app.post("/noproxy/scrape", async (req, res)=>{
         res.json({message:response})
     } catch (error) {
         console.log(error)
+        res.json({error:error})
+    }
+})
+
+app.post("/aa/scrape", async(req, res)=>{
+    // res.setHeader('Content-Type', 'text/event-stream')
+    // res.setHeader('Cache-Control', "no-chahe");
+    // res.setHeader("Connection",'set-live')
+
+    // res.json({message:"scrapping in progress"})
+
+    const body = req.body;
+    console.log(body)
+    try {
+        // const repsonse = await scrapeAmazon(body.link);
+        const addidasResponse = await scrapeAdidas(body.link)
+        res.json({message:express.response})
+    } catch (error) {
         res.json({error:error})
     }
 })
